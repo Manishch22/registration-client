@@ -55,7 +55,6 @@ public class RegistrationAppHealthCheckUtil {
 	/** The operating system. */
 	private static OperatingSystem operatingSystem;
 
-
 	static {
 		systemInfo = new SystemInfo();
 		operatingSystem = systemInfo.getOperatingSystem();

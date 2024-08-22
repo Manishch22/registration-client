@@ -11,13 +11,16 @@ import java.util.Optional;
 
 import javax.imageio.ImageIO;
 
+import io.mosip.registration.api.signaturescanner.SignatureFacade;
+import io.mosip.registration.api.signaturescanner.constant.StreamType;
+import io.mosip.registration.dto.DeviceType;
+import io.mosip.registration.dto.ScanDevice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.registration.api.docscanner.DocScannerFacade;
 import io.mosip.registration.api.docscanner.DocScannerUtil;
-import io.mosip.registration.api.docscanner.dto.DocScanDevice;
 import io.mosip.registration.config.AppConfig;
 import io.mosip.registration.constants.RegistrationConstants;
 import io.mosip.registration.constants.RegistrationUIConstants;
@@ -92,7 +95,12 @@ public class DocumentScanController extends BaseController {
 	@Autowired
 	private DocScannerFacade docScannerFacade;
 
+	@Autowired
+	private SignatureFacade signatureFacade;
+
 	private String selectedScanDeviceName;
+	private String subType;
+	private ScanDevice scanDevice;
 
 	private FxControl fxControl;
 
@@ -103,41 +111,76 @@ public class DocumentScanController extends BaseController {
 				scannedPages = new ArrayList<>();
 			}
 
-			Optional<DocScanDevice> result = docScannerFacade.getConnectedDevices().stream().filter(d -> d.getId().equals(selectedScanDeviceName)).findFirst();
-			if(!result.isPresent()) {
+			try {
+				if(scanDevice != null) {
+					signatureFacade.stopDevice(scanDevice);
+				}
+			} catch (Exception e){};
+
+			Optional<ScanDevice> result = null;
+			if(subType.equals(RegistrationConstants.PROOF_OF_SIGNATURE)) {
+				result = signatureFacade.getConnectedDevices().stream().filter(d -> d.getId().equals(selectedScanDeviceName)).findFirst();
+			} else {
+				result = docScannerFacade.getConnectedDevices().stream().filter(d -> d.getId().equals(selectedScanDeviceName)).findFirst();
+			}
+
+			if(result == null || !result.isPresent()) {
 				LOGGER.error("No scan devices found");
 				generateAlert(RegistrationConstants.ERROR,
 						RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.NO_DEVICE_FOUND));
 				return;
 			}
 
-			result.get().setFrame(null);
-			result.get().setWidth(0);
-			result.get().setHeight(0);
-			BufferedImage bufferedImage = docScannerFacade.scanDocument(result.get(), getValueFromApplicationContext(RegistrationConstants.IMAGING_DEVICE_TYPE));
+			scanDevice = result.get();
+			scanDevice.setFrame(null);
+			scanDevice.setWidth(0);
+			scanDevice.setHeight(0);
+			BufferedImage bufferedImage = null;
+			if(subType.equals(RegistrationConstants.PROOF_OF_SIGNATURE)) {
+				signatureFacade.scanDocument(scanDevice, DeviceType.SIGNATURE_PAD.toString());
+			} else {
+				bufferedImage = docScannerFacade.scanDocument(scanDevice, getValueFromApplicationContext(RegistrationConstants.IMAGING_DEVICE_TYPE));
+				if (bufferedImage == null) {
+					LOGGER.error("captured buffered image was null");
+					generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SCAN_DOCUMENT_ERROR));
+					return;
+				}
 
-			if (bufferedImage == null) {
-				LOGGER.error("captured buffered image was null");
-				generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SCAN_DOCUMENT_ERROR));
-				return;
+				scannedPages.add(bufferedImage);
+				scanPopUpViewController.getImageGroup().getChildren().clear();
+				scanPopUpViewController.getImageGroup().getChildren().add(new ImageView(DocScannerUtil.getImage(bufferedImage)));
+				scanPopUpViewController.getScanImage().setVisible(true);
+				scanPopUpViewController.getScanningMsg().setVisible(false);
+				scanPopUpViewController.showPreview(true);
+				generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.DOC_CAPTURE_SUCCESS));
 			}
-
-			scannedPages.add(bufferedImage);
-			scanPopUpViewController.getImageGroup().getChildren().clear();
-			scanPopUpViewController.getImageGroup().getChildren().add(new ImageView(DocScannerUtil.getImage(bufferedImage)));
-			scanPopUpViewController.getScanImage().setVisible(true);
-			scanPopUpViewController.getScanningMsg().setVisible(false);
-			scanPopUpViewController.showPreview(true);
-			generateAlert(RegistrationConstants.ALERT_INFORMATION, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.DOC_CAPTURE_SUCCESS));
-
 		} catch (RuntimeException exception) {
 			LOGGER.error("Exception while scanning documents for registration", exception);
+			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SCAN_DOCUMENT_ERROR));
+		} catch (Exception e) {
+			LOGGER.error("Exception while scanning documents for registration", e);
 			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SCAN_DOCUMENT_ERROR));
 		}
 	}
 
+	public BufferedImage saveSignature() throws IOException {
+		if(subType.equals(RegistrationConstants.PROOF_OF_SIGNATURE)) {
+			Optional<ScanDevice> result = signatureFacade.getConnectedDevices().stream().filter(d -> d.getId().equals(selectedScanDeviceName)).findFirst();
+			if(result == null || !result.isPresent()) {
+				LOGGER.error("No scan devices found");
+				generateAlert(RegistrationConstants.ERROR,
+						RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.NO_DEVICE_FOUND));
+				return null;
+			}
+			InputStream is = new ByteArrayInputStream(signatureFacade.confirm(result.get(), StreamType.IMAGE));
+			signatureFacade.stopDevice(result.get());
+			return ImageIO.read(is);
+		}
+		return null;
+	}
+
 	public byte[] captureAndConvertBufferedImage() throws Exception {
-		List<DocScanDevice> devices = docScannerFacade.getConnectedCameraDevices();
+		List<ScanDevice> devices = docScannerFacade.getConnectedCameraDevices();
 
 		byte[] byteArray = new byte[0];
 		if(!devices.isEmpty()) {
@@ -156,8 +199,14 @@ public class DocumentScanController extends BaseController {
 	/**
 	 * This method is to select the device and initialize document scan pop-up
 	 */
-	private void initializeAndShowScanPopup(boolean isPreviewOnly) {
-		List<DocScanDevice> devices = docScannerFacade.getConnectedDevices();
+	private void initializeAndShowScanPopup(boolean isPreviewOnly, String subType) {
+		List<ScanDevice> devices = null;
+		if(subType.equals(RegistrationConstants.PROOF_OF_SIGNATURE)) {
+			devices = signatureFacade.getConnectedDevices();
+		} else {
+			devices = docScannerFacade.getConnectedDevices();
+		}
+
 		LOGGER.info("Connected devices : {}", devices);
 
 		if (devices.isEmpty()) {
@@ -165,8 +214,11 @@ public class DocumentScanController extends BaseController {
 			return;
 		}
 
-		selectedScanDeviceName = selectedScanDeviceName == null ? devices.get(0).getId() : selectedScanDeviceName;
-		Optional<DocScanDevice> result = devices.stream().filter(d -> d.getId().equals(selectedScanDeviceName)).findFirst();
+		this.subType = subType;
+		//selectedScanDeviceName = selectedScanDeviceName == null ? devices.get(0).getId() : selectedScanDeviceName;
+		selectedScanDeviceName =  devices.get(0).getId() ;
+		Optional<ScanDevice> result = devices.stream().filter(d -> d.getId().equals(selectedScanDeviceName)).findFirst();
+
 		LOGGER.info("Selected device name : {}", selectedScanDeviceName);
 
 		if(!result.isPresent()) {
@@ -218,13 +270,13 @@ public class DocumentScanController extends BaseController {
 	}
 
 
-	public void scanDocument(String fieldId, FxControl fxControl, boolean isPreviewOnly) {
+	public void scanDocument(String fieldId, FxControl fxControl, boolean isPreviewOnly, String subType) {
 		try {
 			this.fxControl = fxControl;
 
 			loadDataIntoScannedPages(fieldId);
 
-			initializeAndShowScanPopup(isPreviewOnly);
+			initializeAndShowScanPopup(isPreviewOnly, subType);
 
 			LOGGER.info(RegistrationConstants.DOCUMNET_SCAN_CONTROLLER, RegistrationConstants.APPLICATION_NAME,
 					RegistrationConstants.APPLICATION_ID, "Scan window displayed to scan and upload documents");

@@ -11,7 +11,7 @@
 	</parent>-->
 
 	<groupId>io.mosip.registration</groupId>
-	<version>1.2.0.2</version>
+	<version>1.2.0.2-SNAPSHOT</version>
 	<artifactId>registration-client-parent</artifactId>
 	<packaging>pom</packaging>
 	<name>MOSIP Registration Client</name>
@@ -172,7 +172,6 @@
 		<!--<module>ref-impl/ref-document-scanner</module>
 		<module>ref-impl/ref-geoposition-rxtx</module>-->
 		<module>registration-test</module>
-		
 	</modules>
 
 	<dependencyManagement>
@@ -440,6 +439,9 @@
 		    <artifactId>cglib-nodep</artifactId>
 		    <version>3.2.7</version>
 		</dependency>
+
+
+
 		</dependencies>
 	</dependencyManagement>
 
@@ -450,6 +452,7 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>${maven.surefire.plugin.version}</version>
 				<configuration>
+					<!--suppress UnresolvedMavenProperty -->
 					<skipTests>${skipTests}</skipTests>
 					<skip>false</skip>
 					<argLine>

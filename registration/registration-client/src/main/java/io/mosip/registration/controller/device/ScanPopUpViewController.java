@@ -4,8 +4,10 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.Buffer;
 import java.util.ResourceBundle;
 
+import io.mosip.registration.dto.ScanDevice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -13,7 +15,6 @@ import org.springframework.stereotype.Controller;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.registration.api.docscanner.DocScannerFacade;
 import io.mosip.registration.api.docscanner.DocScannerUtil;
-import io.mosip.registration.api.docscanner.dto.DocScanDevice;
 import io.mosip.registration.config.AppConfig;
 import io.mosip.registration.constants.RegistrationConstants;
 import io.mosip.registration.constants.RegistrationUIConstants;
@@ -124,7 +125,7 @@ public class ScanPopUpViewController extends BaseController implements Initializ
 	public TextField streamerValue;
 	private boolean isWebCamStream;
 	private boolean isStreamPaused;
-	public DocScanDevice docScanDevice;
+	public ScanDevice docScanDevice;
 	private RectangleSelection rectangleSelection = null;
 	final DoubleProperty zoomProperty = new SimpleDoubleProperty(200);
 
@@ -352,6 +353,9 @@ public class ScanPopUpViewController extends BaseController implements Initializ
 		// Enable Auto-Logout
 		SessionContext.setAutoLogout(true);
 		try {
+			BufferedImage bufferedImage = documentScanController.saveSignature();
+			if(bufferedImage != null)
+				documentScanController.getScannedPages().add(bufferedImage);
 
 			if(rectangleSelection != null) {
 				String docNumber = docCurrentPageNumber.getText();
@@ -363,7 +367,7 @@ public class ScanPopUpViewController extends BaseController implements Initializ
 			documentScanController.getScannedPages().clear();
 			popupStage.close();
 
-		} catch (RuntimeException exception) {
+		} catch (RuntimeException | IOException exception) {
 			LOGGER.error("Failed to set data in documentDTO", exception);
 			generateAlert(RegistrationConstants.ERROR, RegistrationUIConstants.getMessageLanguageSpecific(RegistrationUIConstants.SCAN_DOCUMENT_ERROR));
 		}

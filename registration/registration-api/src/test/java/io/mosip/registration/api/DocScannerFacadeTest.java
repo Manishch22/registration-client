@@ -10,14 +10,14 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 
+import io.mosip.registration.dto.DeviceType;
+import io.mosip.registration.dto.ScanDevice;
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import io.mosip.registration.api.docscanner.DeviceType;
 import io.mosip.registration.api.docscanner.DocScannerFacade;
 import io.mosip.registration.api.docscanner.DocScannerService;
-import io.mosip.registration.api.docscanner.dto.DocScanDevice;
 
 public class DocScannerFacadeTest {
 
@@ -26,7 +26,7 @@ public class DocScannerFacadeTest {
         DocScannerFacade facade = new DocScannerFacade();
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        List<DocScanDevice> identifiedDevices = facade.getConnectedDevices();
+        List<ScanDevice> identifiedDevices = facade.getConnectedDevices();
         Assert.assertEquals(2, identifiedDevices.size());
     }
 
@@ -35,7 +35,7 @@ public class DocScannerFacadeTest {
         DocScannerFacade facade = new DocScannerFacade();
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        List<DocScanDevice> identifiedDevices = facade.getConnectedCameraDevices();
+        List<ScanDevice> identifiedDevices = facade.getConnectedCameraDevices();
         Assert.assertEquals(1, identifiedDevices.size());
     }
 
@@ -48,7 +48,7 @@ public class DocScannerFacadeTest {
     @Test
     public void getConnectedCameraDevicesNoImplTest() {
         DocScannerFacade facade = new DocScannerFacade();
-        List<DocScanDevice> identifiedDevices = facade.getConnectedCameraDevices();
+        List<ScanDevice> identifiedDevices = facade.getConnectedCameraDevices();
         Assert.assertEquals(0, identifiedDevices.size());
     }
 
@@ -57,7 +57,7 @@ public class DocScannerFacadeTest {
         DocScannerFacade facade = new DocScannerFacade();
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        DocScanDevice device = new DocScanDevice();
+        ScanDevice device = new ScanDevice();
         device.setDeviceType(DeviceType.SCANNER);
         device.setId("SCANNER_001");
         device.setName("SCANNER_001");
@@ -71,7 +71,7 @@ public class DocScannerFacadeTest {
         DocScannerFacade facade = new DocScannerFacade();
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        DocScanDevice device = new DocScanDevice();
+        ScanDevice device = new ScanDevice();
         device.setDeviceType(DeviceType.SCANNER);
         device.setId("SCANNER_001");
         device.setName("SCANNER_001");
@@ -98,7 +98,7 @@ public class DocScannerFacadeTest {
 
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        DocScanDevice device = new DocScanDevice();
+        ScanDevice device = new ScanDevice();
         device.setDeviceType(DeviceType.SCANNER);
         device.setId("SCANNER_001");
         device.setName("SCANNER_001");
@@ -127,7 +127,7 @@ public class DocScannerFacadeTest {
 
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        DocScanDevice device = new DocScanDevice();
+        ScanDevice device = new ScanDevice();
         device.setDeviceType(DeviceType.SCANNER);
         device.setId("SCANNER_001");
         device.setName("SCANNER_001");
@@ -143,7 +143,7 @@ public class DocScannerFacadeTest {
         DocScannerFacade facade = new DocScannerFacade();
         DocScannerService serviceImpl = getMockDocScannerService();
         ReflectionTestUtils.setField(facade, "docScannerServiceList", Collections.singletonList(serviceImpl));
-        DocScanDevice device = new DocScanDevice();
+        ScanDevice device = new ScanDevice();
         device.setDeviceType(DeviceType.SCANNER);
         device.setId("SCANNER_001");
         device.setName("SCANNER_001");
@@ -155,7 +155,7 @@ public class DocScannerFacadeTest {
     @Test
     public void stopDeviceTest2() {
         DocScannerFacade facade = new DocScannerFacade();
-        DocScanDevice device = new DocScanDevice();
+        ScanDevice device = new ScanDevice();
         device.setDeviceType(DeviceType.SCANNER);
         device.setId("SCANNER_001");
         device.setName("SCANNER_001");
@@ -172,23 +172,24 @@ public class DocScannerFacadeTest {
             }
 
             @Override
-            public BufferedImage scan(DocScanDevice docScanDevice, String deviceType) {
+            public BufferedImage scan(ScanDevice docScanDevice, String deviceType) {
                 try {
                     return ImageIO.read(this.getClass().getResourceAsStream("/images/stubdoc.png"));
-                } catch (IOException e) { }
+                } catch (IOException e) {
+                }
                 return null;
             }
 
             @Override
-            public List<DocScanDevice> getConnectedDevices() {
-                List<DocScanDevice> devices = new ArrayList<>();
-                DocScanDevice device1 = new DocScanDevice();
+            public List<ScanDevice> getConnectedDevices() {
+                List<ScanDevice> devices = new ArrayList<>();
+                ScanDevice device1 = new ScanDevice();
                 device1.setDeviceType(DeviceType.SCANNER);
                 device1.setId("SCANNER_001");
                 device1.setName("SCANNER_001");
                 device1.setServiceName(getServiceName());
                 devices.add(device1);
-                DocScanDevice device2 = new DocScanDevice();
+                ScanDevice device2 = new ScanDevice();
                 device2.setDeviceType(DeviceType.CAMERA);
                 device2.setId("CAMERA_001");
                 device2.setName("CAMERA_001");
@@ -198,7 +199,7 @@ public class DocScannerFacadeTest {
             }
 
             @Override
-            public void stop(DocScanDevice docScanDevice) {
+            public void stop(ScanDevice docScanDevice) {
                 //Do nothing
             }
         };

@@ -24,7 +24,7 @@ on:
 
 jobs:
   build-regclient:
-    uses: mosip/kattu/.github/workflows/maven-build.yml@master
+    uses: Manishch22/registration-client/.github/workflows/maven-build.yml@tf-nira-latest
     with:
       SERVICE_LOCATION: registration
       BUILD_ARTIFACT: registration
